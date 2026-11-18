@@ -1,0 +1,48 @@
+from flask import Flask, request, redirect
+
+app = Flask(__name__)
+produtos = []
+
+@app.route("/")
+def inicio():
+    return """
+    <h1>Mercado Controle</h1>
+    <a href='/produtos'>Cadastrar e consultar produtos</a>
+    """
+
+@app.route("/produtos", methods=["GET", "POST"])
+def cadastro():
+    if request.method == "POST":
+        nome = request.form["nome"]
+        quantidade = int(request.form["quantidade"])
+        minimo = int(request.form["minimo"])
+
+        if nome and quantidade >= 0 and minimo >= 0:
+            produtos.append({
+                "nome": nome,
+                "quantidade": quantidade,
+                "minimo": minimo
+            })
+
+        return redirect("/produtos")
+
+    lista = "".join(
+        f"<li>{p['nome']} - Estoque: {p['quantidade']}</li>"
+        for p in produtos
+    )
+
+    return f"""
+    <h1>Cadastro de Produtos</h1>
+    <form method="post">
+        Nome: <input name="nome" required><br>
+        Quantidade: <input type="number" name="quantidade" min="0" required><br>
+        Estoque mínimo: <input type="number" name="minimo" min="0" required><br>
+        <button type="submit">Cadastrar</button>
+    </form>
+    <h2>Produtos cadastrados</h2>
+    <ul>{lista}</ul>
+    <a href="/">Voltar</a>
+    """
+
+if __name__ == "__main__":
+    app.run(debug=True)
