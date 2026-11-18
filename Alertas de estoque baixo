@@ -1,0 +1,102 @@
+from flask import Flask, request, redirect
+
+app = Flask(__name__)
+produtos = []
+movimentacoes = []
+
+@app.route("/")
+def inicio():
+    alertas = "".join(
+        f"<li>⚠️ {p['nome']}: apenas {p['quantidade']} unidades (mínimo: {p['minimo']})</li>"
+        for p in produtos
+        if p["quantidade"] <= p["minimo"]
+    )
+
+    return f"""
+    <h1>Mercado Controle</h1>
+    <h2>Alertas de estoque baixo</h2>
+    <ul>{alertas or '<li>Nenhum produto com estoque baixo.</li>'}</ul>
+    <a href='/produtos'>Produtos</a><br>
+    <a href='/movimentar'>Movimentar estoque</a>
+    """
+
+@app.route("/produtos", methods=["GET", "POST"])
+def cadastro():
+    if request.method == "POST":
+        nome = request.form["nome"]
+        quantidade = int(request.form["quantidade"])
+        minimo = int(request.form["minimo"])
+
+        if nome and quantidade >= 0 and minimo >= 0:
+            produtos.append({
+                "nome": nome,
+                "quantidade": quantidade,
+                "minimo": minimo
+            })
+        return redirect("/produtos")
+
+    lista = "".join(
+        f"<li>{i} - {p['nome']} - Estoque: {p['quantidade']} - Mínimo: {p['minimo']}</li>"
+        for i, p in enumerate(produtos)
+    )
+
+    return f"""
+    <h1>Cadastro de Produtos</h1>
+    <form method="post">
+        Nome: <input name="nome" required><br>
+        Quantidade: <input type="number" name="quantidade" min="0" required><br>
+        Estoque mínimo: <input type="number" name="minimo" min="0" required><br>
+        <button>Cadastrar</button>
+    </form>
+    <ul>{lista}</ul>
+    <a href="/">Voltar</a>
+    """
+
+@app.route("/movimentar", methods=["GET", "POST"])
+def movimentar():
+    mensagem = ""
+
+    if request.method == "POST":
+        indice = int(request.form["produto"])
+        tipo = request.form["tipo"]
+        quantidade = int(request.form["quantidade"])
+
+        if quantidade > 0 and 0 <= indice < len(produtos):
+            produto = produtos[indice]
+
+            if tipo == "entrada":
+                produto["quantidade"] += quantidade
+                mensagem = "Entrada registrada!"
+            elif tipo == "saida" and quantidade <= produto["quantidade"]:
+                produto["quantidade"] -= quantidade
+                mensagem = "Saída registrada!"
+            else:
+                mensagem = "Quantidade inválida ou estoque insuficiente."
+
+            movimentacoes.append(
+                f"{tipo}: {quantidade} unidades de {produto['nome']}"
+            )
+
+    opcoes = "".join(
+        f"<option value='{i}'>{p['nome']}</option>"
+        for i, p in enumerate(produtos)
+    )
+
+    return f"""
+    <h1>Movimentar Estoque</h1>
+    <p>{mensagem}</p>
+    <form method="post">
+        Produto: <select name="produto">{opcoes}</select><br>
+        Tipo:
+        <select name="tipo">
+            <option value="entrada">Entrada</option>
+            <option value="saida">Saída</option>
+        </select><br>
+        Quantidade: <input type="number" name="quantidade" min="1" required><br>
+        <button>Registrar movimentação</button>
+    </form>
+    <a href="/">Voltar</a>
+    """
+
+if __name__ == "__main__":
+    app.run(debug=True)
